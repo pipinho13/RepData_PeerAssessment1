@@ -5,21 +5,108 @@ output:
     keep_md: true
 ---
 
+```{r, message=F, warning=F }
+library(dplyr)
+library(lattice)
+library(xtable)
+```
 
 ## Loading and preprocessing the data
 
 
+```{r}
+activitydf<-read.csv("activity.csv")
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+totalstepsdf<-filter(activitydf, !is.na(steps)) %>% group_by(date) %>% summarize(total_steps=sum(steps))
+mean(totalstepsdf$total_steps)
+median(totalstepsdf$total_steps)
+```
+
+
+```{r}
+hist(totalstepsdf$total_steps, col="red", main="Total Steps per Day", xlab="Daily Number of Steps")
+```
 
 
 ## What is the average daily activity pattern?
 
+```{r}
 
+mean_interval_stepsdf<-filter(activitydf, !is.na(steps)) %>% group_by(interval) %>% summarize(avg_steps=mean(steps))
+
+
+
+plot(mean_interval_stepsdf$interval, mean_interval_stepsdf$avg_steps, type='l', xlab="Intervals", ylab="Avg Steps", main="Average Daily Pettern")
+
+```
+
+## Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+mean_interval_stepsdf[which.max(mean_interval_stepsdf$avg_steps),]
+```
+
+##Calculate and report the total number of missing values in the dataset 
+
+```{r}
+length(activitydf[,1])-sum(complete.cases(activitydf))
+
+```
+
+###Devise a strategy for filling in all of the missing values in the dataset.
+
+All the NA values appear in some specific days were we do not have any info.
+
+```{r}
+
+nadf<-filter(activitydf, is.na(steps))
+xt<-(table(nadf$date))
+print(xt, type="html")
+```
+
+For that reason i will assign for every NA the average number of steps
 
 ## Imputing missing values
 
+```{r}
 
+newdf<-activitydf
+
+newdf[is.na(newdf[,1]),1]<-mean(activitydf$steps, na.rm=TRUE)
+
+totalstepsnewdf<-select(newdf, 1:3) %>% group_by(date) %>% summarize(total_steps=sum(steps))
+
+
+mean(totalstepsnewdf$total_steps)  
+median(totalstepsnewdf$total_steps)
+
+```
+
+The mean is the same but the median changes sligthly
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+
+
+cleandf<-filter(activitydf, !is.na(steps))
+
+cleandf$date<-weekdays(as.Date(cleandf$date, format = "%Y-%m-%d"))
+cleandf$weekend<-cleandf$date
+cleandf[which((cleandf[,2] %in% c("Saturday", "Sunday"))),4]<-"Weekend"
+
+cleandf[which(!(cleandf[,2] %in% c("Saturday", "Sunday"))),4]<-"Weekday"
+
+mean_interval_stepsdfv2<-select(cleandf, 1:4) %>% group_by(interval, weekend) %>% summarize(avg_steps=mean(steps))
+
+mean_interval_stepsdfv2<-transform(mean_interval_stepsdfv2, weekend<-factor(weekend))
+xyplot(avg_steps~interval | weekend, 
+data=mean_interval_stepsdfv2, type='l', layout=c(1,2), ylab="Mean Steps per Interval")
+
+```
+
+From the plot we can see that there is differences in activity patterns between weekdays and weekends
